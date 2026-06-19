@@ -6,6 +6,7 @@ import HomeScreen from './src/screens/HomeScreen';
 import JourneyScreen from './src/screens/JourneyScreen';
 import AlarmScreen from './src/screens/AlarmScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
+import ErrorBoundary from './src/components/ErrorBoundary';
 
 export type RootStackParamList = {
   Home: undefined;
@@ -26,24 +27,26 @@ export default function App() {
   const theme = useTheme();
 
   return (
-    <NavigationContainer>
-      <StatusBar style={theme.background === '#F7F4ED' ? 'dark' : 'light'} />
-      <Stack.Navigator
-        screenOptions={{
-          headerShown: false,
-          contentStyle: { backgroundColor: theme.background },
-          animation: 'fade',
-        }}
-      >
-        <Stack.Screen name="Home" component={HomeScreen} />
-        <Stack.Screen name="Journey" component={JourneyScreen} />
-        <Stack.Screen
-          name="Alarm"
-          component={AlarmScreen}
-          options={{ animation: 'fade' }}
-        />
-        <Stack.Screen name="Settings" component={SettingsScreen} />
-      </Stack.Navigator>
-    </NavigationContainer>
+    <ErrorBoundary>
+      <NavigationContainer>
+        <StatusBar style={theme.background === '#F7F4ED' ? 'dark' : 'light'} />
+        <Stack.Navigator
+          screenOptions={{
+            headerShown: false,
+            contentStyle: { backgroundColor: theme.background },
+            animation: 'fade',
+          }}
+        >
+          <Stack.Screen name="Home" component={HomeScreen} />
+          <Stack.Screen name="Journey" component={JourneyScreen} />
+          <Stack.Screen
+            name="Alarm"
+            component={AlarmScreen}
+            options={{ animation: 'fade' }}
+          />
+          <Stack.Screen name="Settings" component={SettingsScreen} />
+        </Stack.Navigator>
+      </NavigationContainer>
+    </ErrorBoundary>
   );
 }
