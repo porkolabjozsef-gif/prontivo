@@ -34,7 +34,7 @@
         "android.permission.FOREGROUND_SERVICE",
         "android.permission.FOREGROUND_SERVICE_LOCATION"
       ],
-      "versionCode": 15
+      "versionCode": 16
     },
     "web": {
       "favicon": "./assets/favicon.png"
