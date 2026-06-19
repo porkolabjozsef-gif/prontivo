@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, Dimensions } from 'react-native';
-import MapView, { Marker, UrlTile, Polyline } from 'react-native-maps';
+import MapView, { Marker, UrlTile, Polyline, PROVIDER_DEFAULT } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { useTheme } from '../hooks/useTheme';
 import { calculateETA } from '../utils/eta';
@@ -113,6 +113,7 @@ export default function JourneyScreen({ route, navigation }: Props) {
   return (
     <View style={styles.container}>
       <MapView
+        provider={PROVIDER_DEFAULT}
         ref={mapRef}
         style={styles.map}
         initialRegion={{

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
@@ -7,6 +8,7 @@ import JourneyScreen from './src/screens/JourneyScreen';
 import AlarmScreen from './src/screens/AlarmScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import ErrorBoundary from './src/components/ErrorBoundary';
+import SplashIntro from './src/components/SplashIntro';
 
 export type RootStackParamList = {
   Home: undefined;
@@ -25,6 +27,7 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export default function App() {
   const theme = useTheme();
+  const [showSplash, setShowSplash] = useState(true);
 
   return (
     <ErrorBoundary>
@@ -47,6 +50,7 @@ export default function App() {
           <Stack.Screen name="Settings" component={SettingsScreen} />
         </Stack.Navigator>
       </NavigationContainer>
+      {showSplash && <SplashIntro onFinish={() => setShowSplash(false)} />}
     </ErrorBoundary>
   );
 }
