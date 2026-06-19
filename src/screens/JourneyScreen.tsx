@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, Dimensions, ScrollView, ActivityIndicator } from 'react-native';
-import MapView, { Marker, UrlTile, Polyline, PROVIDER_DEFAULT } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { useTheme } from '../hooks/useTheme';
 import { calculateETA } from '../utils/eta';
@@ -8,6 +7,7 @@ import { haversineDistance } from '../utils/haversine';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../App';
 import { searchStops, getStopDepartures } from '../services/transitland';
+import LeafletMap, { LeafletMapHandle } from '../components/LeafletMap';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Journey'>;
 
@@ -22,7 +22,8 @@ interface Departure {
 export default function JourneyScreen({ route, navigation }: Props) {
   const { destination, alertMinutes } = route.params;
   const theme = useTheme();
-  const mapRef = useRef<MapView>(null);
+  const mapRef = useRef<LeafletMapHandle>(null);
+  const isDark = theme.background !== '#F7F4ED';
 
   const [currentLocation, setCurrentLocation] = useState<{
     latitude: number;
@@ -32,7 +33,6 @@ export default function JourneyScreen({ route, navigation }: Props) {
   const [distance, setDistance] = useState<number | null>(null);
   const [alerted, setAlerted] = useState(false);
 
-  // TransitLand - tájékoztató menetrend
   const [departures, setDepartures] = useState<Departure[]>([]);
   const [scheduleLoading, setScheduleLoading] = useState(true);
   const [scheduleError, setScheduleError] = useState(false);
@@ -56,6 +56,7 @@ export default function JourneyScreen({ route, navigation }: Props) {
             longitude: location.coords.longitude,
           };
           setCurrentLocation(current);
+          mapRef.current?.updatePosition(current);
 
           const dist = haversineDistance(current, destination);
           setDistance(dist);
@@ -63,14 +64,6 @@ export default function JourneyScreen({ route, navigation }: Props) {
           const etaMin = calculateETA(current, destination, location.coords.speed);
           setEta(etaMin);
 
-          mapRef.current?.animateToRegion({
-            latitude: current.latitude,
-            longitude: current.longitude,
-            latitudeDelta: 0.05,
-            longitudeDelta: 0.05,
-          }, 500);
-
-          // GPS az igazság - a riasztás mindig erre épül
           if (!alerted && etaMin !== null && etaMin <= alertMinutes) {
             setAlerted(true);
             navigation.navigate('Alarm', {
@@ -92,7 +85,6 @@ export default function JourneyScreen({ route, navigation }: Props) {
     return () => subscription?.remove();
   }, [alerted]);
 
-  // TransitLand - tájékoztató menetrend lekérése a célállomáshoz
   useEffect(() => {
     (async () => {
       setScheduleLoading(true);
@@ -104,15 +96,12 @@ export default function JourneyScreen({ route, navigation }: Props) {
           setScheduleLoading(false);
           return;
         }
-
         const stopTimes = await getStopDepartures(stops[0].onestop_id);
-
         const parsed: Departure[] = stopTimes.slice(0, 5).map((st: any) => ({
           stopName: st.stop?.stop_name || destination.name,
           routeName: st.trip?.route?.route_short_name || st.trip?.route?.route_long_name || '—',
           scheduledTime: st.departure_time || st.arrival_time || '—',
         }));
-
         setDepartures(parsed);
       } catch (e) {
         setScheduleError(true);
@@ -123,7 +112,7 @@ export default function JourneyScreen({ route, navigation }: Props) {
 
   const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: theme.background },
-    map: { width: '100%', height: height * 0.45 },
+    map: { width: '100%', height: height * 0.42 },
     infoPanel: {
       flex: 1,
       backgroundColor: theme.surface,
@@ -132,52 +121,25 @@ export default function JourneyScreen({ route, navigation }: Props) {
       borderTopRightRadius: 20,
       marginTop: -20,
     },
-    destination: {
-      fontSize: 18,
-      fontWeight: 'bold',
-      color: theme.text,
-      marginBottom: 16,
-    },
-    etaRow: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-    },
+    destination: { fontSize: 18, fontWeight: 'bold', color: theme.text, marginBottom: 16 },
+    etaRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
     etaLabel: { fontSize: 14, color: theme.textSecondary },
     etaValue: { fontSize: 36, fontWeight: 'bold', color: theme.primary },
     etaUnit: { fontSize: 16, color: theme.textSecondary },
     distanceText: { fontSize: 14, color: theme.textSecondary, marginTop: 8, marginBottom: 16 },
     scheduleSection: { marginTop: 8 },
     scheduleSectionTitle: {
-      fontSize: 12,
-      color: theme.textSecondary,
-      letterSpacing: 2,
-      textTransform: 'uppercase',
-      marginBottom: 8,
+      fontSize: 12, color: theme.textSecondary, letterSpacing: 2,
+      textTransform: 'uppercase', marginBottom: 8,
     },
-    scheduleNote: {
-      fontSize: 11,
-      color: theme.textSecondary,
-      fontStyle: 'italic',
-      marginBottom: 12,
-    },
+    scheduleNote: { fontSize: 11, color: theme.textSecondary, fontStyle: 'italic', marginBottom: 12 },
     departureRow: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      paddingVertical: 10,
-      borderBottomWidth: 1,
-      borderBottomColor: theme.border,
+      flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+      paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: theme.border,
     },
     departureRoute: {
-      fontSize: 14,
-      fontWeight: '600',
-      color: theme.text,
-      backgroundColor: theme.primary,
-      paddingHorizontal: 8,
-      paddingVertical: 2,
-      borderRadius: 6,
-      overflow: 'hidden',
+      fontSize: 14, fontWeight: '600', color: theme.text, backgroundColor: theme.primary,
+      paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6, overflow: 'hidden',
     },
     departureStop: { fontSize: 13, color: theme.textSecondary, flex: 1, marginLeft: 10 },
     departureTime: { fontSize: 14, fontWeight: 'bold', color: theme.text },
@@ -186,35 +148,14 @@ export default function JourneyScreen({ route, navigation }: Props) {
 
   return (
     <ScrollView style={styles.container}>
-      <MapView
-        provider={PROVIDER_DEFAULT}
-        ref={mapRef}
-        style={styles.map}
-        initialRegion={{
-          latitude: destination.latitude,
-          longitude: destination.longitude,
-          latitudeDelta: 0.1,
-          longitudeDelta: 0.1,
-        }}
-      >
-        <UrlTile
-          urlTemplate="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
-          maximumZ={19}
-          flipY={false}
+      <View style={styles.map}>
+        <LeafletMap
+          ref={mapRef}
+          initialRegion={{ latitude: destination.latitude, longitude: destination.longitude }}
+          destination={destination}
+          isDark={isDark}
         />
-        {currentLocation && (
-          <Marker coordinate={currentLocation} title="Te" pinColor={theme.primary} />
-        )}
-        <Marker coordinate={destination} title={destination.name} pinColor="#E74C3C" />
-        {currentLocation && (
-          <Polyline
-            coordinates={[currentLocation, destination]}
-            strokeColor={theme.primary}
-            strokeWidth={2}
-            lineDashPattern={[8, 4]}
-          />
-        )}
-      </MapView>
+      </View>
 
       <View style={styles.infoPanel}>
         <Text style={styles.destination}>📍 {destination.name}</Text>
@@ -231,9 +172,7 @@ export default function JourneyScreen({ route, navigation }: Props) {
         </View>
         {distance !== null && (
           <Text style={styles.distanceText}>
-            Távolság: {distance < 1
-              ? `${Math.round(distance * 1000)} m`
-              : `${distance.toFixed(1)} km`}
+            Távolság: {distance < 1 ? `${Math.round(distance * 1000)} m` : `${distance.toFixed(1)} km`}
           </Text>
         )}
 
@@ -244,15 +183,12 @@ export default function JourneyScreen({ route, navigation }: Props) {
           </Text>
 
           {scheduleLoading && <ActivityIndicator color={theme.primary} style={{ marginVertical: 12 }} />}
-
           {!scheduleLoading && scheduleError && (
             <Text style={styles.emptyText}>Menetrend adat jelenleg nem elérhető ehhez az állomáshoz.</Text>
           )}
-
           {!scheduleLoading && !scheduleError && departures.length === 0 && (
             <Text style={styles.emptyText}>Nincs elérhető járat adat.</Text>
           )}
-
           {departures.map((d, i) => (
             <View key={i} style={styles.departureRow}>
               <Text style={styles.departureRoute}>{d.routeName}</Text>
